@@ -123,16 +123,7 @@ local function greetCustomer(e)
 end
 
 local function loadPlayerData()
-	local defaultPlayerData = {
-		kanetWest = { following = false },
-		potions = {
-			{ effectId = tes3.effect.restoreHealth, effectName = "Restore Health", name = "potion of restore health" },
-			{ effectId = tes3.effect.restoreMagicka, effectName = "Restore magicka", name = "potion of restore magicka" },
-		},
-		potionNum = { "one" },
-		potionRequested = {},
-	}
-	tes3.player.data.alchemistsShop = tes3.player.data.alchemistsShop or defaultPlayerData
+	tes3.player.data.alchemistsShop = tes3.player.data.alchemistsShop or data.defaultPlayerData
 end
 
 local currentDay
@@ -145,7 +136,6 @@ local function clearCustomerData()
 end
 
 local function onInit()
-	data.getStoreBoughtPotionData()
 	event.register("loaded", loadPlayerData, { priority = 73 })
 	-- item scrips
 	require("JosephMcKean.alchemistsShop.objects")
