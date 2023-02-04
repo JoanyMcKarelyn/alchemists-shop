@@ -1,9 +1,21 @@
 local this = {}
 
 this.mod = "Alchemist's Shop"
+local log = require("logging.logger").new({ name = this.mod, logLevel = "DEBUG" })
 
 this.defaultPlayerData = {
-	kanetWest = { acquinted = false },
+	kanetWest = {
+		herbNeeded = 6,
+		enabled = false, -- Dead Kanet is disabled and Kanet is enabled
+		startUp = false, -- begin following the player
+		follow = false, -- Kanet is currently following the player
+		stats = {
+			energy = 100, -- determines health, increased by resting
+			literacy = 0, -- determines magicka, increased by reading
+			affection = 0, -- determines fatigue, increased by petting 
+			hunger = 0, -- determines buff, increased by feeding herbs and teas
+		},
+	},
 	potions = {
 		{ effectId = tes3.effect.restoreHealth, effectName = "Restore Health", name = "potion of restore health" },
 		{ effectId = tes3.effect.restoreMagicka, effectName = "Restore magicka", name = "potion of restore magicka" },
@@ -23,10 +35,39 @@ this.shop = {
 }
 
 this.kanetWest = {
+	deadKanetId = "jsmk_as_kanetWest_dead",
 	id = "jsmk_as_kanet_west",
-	itemPickUpSound = "jsmk_as_spiderMoan",
+	name = "Kanet West",
 	herbNodeI = "Herbs I",
 	herbNodeII = "Herbs II",
+	uiID = {
+		fillbarsLayout = tes3ui.registerID("KanetWest_fillbars_layout"),
+		health = tes3ui.registerID("KanetWest_health"),
+		healthFillbar = tes3ui.registerID("KanetWest_health_fillbar"),
+		healthIcon = tes3ui.registerID("KanetWest_health_icon"),
+		magic = tes3ui.registerID("KanetWest_magic"),
+		magicFillbar = tes3ui.registerID("KanetWest_magic_fillbar"),
+		magicIcon = tes3ui.registerID("KanetWest_magic_icon"),
+		fatigue = tes3ui.registerID("KanetWest_fatigue"),
+		fatigueFillbar = tes3ui.registerID("KanetWest_fatigue_fillbar"),
+		fatigueIcon = tes3ui.registerID("KanetWest_fatigue_icon"),
+		hunger = tes3ui.registerID("KanetWest_hunger"),
+		hungerFillbar = tes3ui.registerID("KanetWest_hunger_fillbar"),
+		hungerIcon = tes3ui.registerID("KanetWest_hunger_icon"),
+	},
+	talkSound = {
+		"\\jsmk\\as\\spider01.wav",
+		"\\jsmk\\as\\spider02.wav",
+		"\\jsmk\\as\\spider03.wav",
+		"\\jsmk\\as\\spider04.wav",
+		"\\jsmk\\as\\spider05.wav",
+		"\\jsmk\\as\\spider21.wav",
+		"\\jsmk\\as\\spider22.wav",
+		"\\jsmk\\as\\spider23.wav",
+		"\\jsmk\\as\\spider24.wav",
+		"\\jsmk\\as\\spider25.wav",
+	},
+	itemPickUpSound = "jsmk_as_spiderMoan",
 }
 
 this.kanetWest.herbsByRegion = {
@@ -128,6 +169,9 @@ this.kanetWest.herbsByRegion = {
 		"ingred_willow_anther_01",
 		"ingred_stoneflower_petals_01",
 		"ingred_comberry_01",
+		"ingred_black_anther_01",
+		"t_ingflor_bluekanet_01",
+		"t_ingflor_templedome_01",
 	},
 	["old ebonheart region"] = {
 		"ingred_stoneflower_petals_01",
@@ -248,18 +292,69 @@ this.kanetWest.herbsByRegion = {
 		"ingred_black_anther_01",
 		"t_ingflor_blackrosepetal_01",
 	},
-	-- TODO Shotn
-	["lorchwuir hearth region"] = {},
-	["vorndgad forest region"] = {},
-	["druadach highlands region"] = {},
-	["sundered hills region"] = {},
-	["midkarth region"] = {},
-	["falkheim region"] = {},
+	-- Shotn
+	["lorchwuir hearth region"] = {
+		"t_ingflor_dragynia_01",
+		"t_ingfood_appleskyrim_01",
+		"t_ingfood_wheat_01",
+		"t_ingflor_redpoppy_01",
+		"t_ingflor_persarine_01",
+	},
+	["vorndgad forest region"] = {
+		"ingred_holly_01",
+		"t_ingflor_rustrussula_01",
+		"t_ingflor_vicarherb_01",
+		"t_ingflor_bearclaw_01",
+		"t_ingflor_honeylily_02",
+		"t_ingflor_honeylily_01",
+		"t_ingflor_shadowfly_01",
+		"t_ingflor_shadowfly_02",
+		"t_ingflor_blacksporecap_01",
+		"t_ingflor_taragetis_01",
+	},
+	["druadach highlands region"] = {
+		"t_ingfood_silverpalmfruit_01",
+		"t_ingflor_vicarherb_01",
+		"t_ingflor_rustrussula_01",
+		"t_ingflor_aspyrtea_01",
+		"t_ingflor_persarine_01",
+		"t_ingflor_trembleweedsap_01",
+	},
+	["sundered hills region"] = {
+		"t_ingflor_forsythiatrroots_01",
+		"t_ingflor_trembleweedsap_01",
+		"t_ingflor_aspyrtea_01",
+		"t_ingflor_blacksporecap_01",
+		"t_ingflor_vicarherb_01",
+		"t_ingflor_rustrussula_01",
+		"t_ingflor_honeylily_02",
+		"t_ingflor_honeylily_01",
+		"t_ingflor_shadowfly_01",
+		"t_ingflor_shadowfly_02",
+		"ingred_holly_01",
+		"t_ingflor_bearclaw_01",
+	},
+	["midkarth region"] = {
+		"t_ingflor_rustrussula_01",
+		"t_ingflor_honeylily_02",
+		"t_ingflor_honeylily_01",
+		"t_ingflor_blacksporecap_01",
+		"t_ingflor_taragetis_01",
+		"t_ingflor_bearclaw_01",
+		"t_ingfood_grapewrothgarian_01",
+	},
+	["falkheim region"] = {
+		"t_ingflor_vicarherb_01",
+		"t_ingflor_tawnyfunnelcap_01",
+		"t_ingflor_rustrussula_01",
+		"t_ingflor_kingbolete_01",
+		"t_ingflor_bleakbell_01",
+	},
 }
-this.kanetWest.isHerb = {}
+this.kanetWest.isHerb = { ["ab_ingflor_bluekanet_01"] = true }
 for _, ingreds in pairs(this.kanetWest.herbsByRegion) do
 	if not table.empty(ingreds) then
-		for _, ingred in (ingreds) do
+		for _, ingred in pairs(ingreds) do
 			if not this.kanetWest.isHerb[ingred] then
 				this.kanetWest.isHerb[ingred] = true
 			end
@@ -291,15 +386,18 @@ this.storeBought = {
 		{ tier = 5, id = "p_restore_health_e" },
 	},
 }
-for effectName, v in pairs(this.storeBought) do
-	table.sort(v, function(a, b)
-		return a.tier < b.tier
-	end)
-	for _, vv in ipairs(v) do
-		local potion = tes3.getObject(vv.id)
-		vv.totalPoints = potion.effects[1].min * potion.effects[1].duration
-		vv.value = potion.value
+function this.calcStoreBoughtPotions()
+	for effectName, v in pairs(this.storeBought) do
+		table.sort(v, function(a, b)
+			return a.tier < b.tier
+		end)
+		for _, vv in pairs(v) do
+			local potion = tes3.getObject(vv.id)
+			vv.totalPoints = potion.effects[1].min * potion.effects[1].duration
+			vv.value = potion.value
+		end
 	end
+	this.storeBoughtPotionsCalced = true
 end
 
 return this

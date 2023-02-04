@@ -1,6 +1,5 @@
 local data = require("JosephMcKean.alchemistsShop.data")
-local mod = data.mod
-local log = require("logging.logger").new({ name = mod, logLevel = "INFO" })
+local log = require("logging.logger").new({ name = data.mod, logLevel = "INFO" })
 
 ---@param effectName string
 ---@param potion tes3alchemy
@@ -56,7 +55,7 @@ local function customerTalking()
 	local menuDialog = tes3ui.findMenu(tes3ui.registerID("MenuDialog"))
 	if menuDialog then
 		local npc = menuDialog:getPropertyObject("PartHyperText_actor")
-		if npc and npc.context[data.customerContext.isCustomer] == 1 then
+		if npc and npc.context and npc.context[data.customerContext.isCustomer] == 1 then
 			return npc
 		end
 	end
@@ -124,6 +123,9 @@ end
 
 local function loadPlayerData()
 	tes3.player.data.alchemistsShop = tes3.player.data.alchemistsShop or data.defaultPlayerData
+	if not data.storeBoughtPotionsCalced then
+		data.calcStoreBoughtPotions()
+	end
 end
 
 local currentDay
@@ -136,11 +138,13 @@ local function clearCustomerData()
 end
 
 local function onInit()
-	event.register("loaded", loadPlayerData, { priority = 73 })
-	-- item scrips
-	require("JosephMcKean.alchemistsShop.objects")
-	-- npc scripts
-	event.register("infoGetText", greetCustomer)
-	event.register("cellChanged", clearCustomerData)
+	if tes3.isModActive("Alchemist's Shop.esp") then
+		event.register("loaded", loadPlayerData, { priority = 73 })
+		-- item scrips
+		require("JosephMcKean.alchemistsShop.objects")
+		-- npc scripts
+		event.register("infoGetText", greetCustomer)
+		event.register("cellChanged", clearCustomerData)
+	end
 end
 event.register("initialized", onInit)
