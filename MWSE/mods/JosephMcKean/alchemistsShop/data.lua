@@ -32,6 +32,12 @@ this.shop = {
 		markerDown = { position = { -19.217, -71.849, 2 }, orientation = { 0, 0, 180 } },
 		soundPath = { up = "\\jsmk\\as\\ladderUp.wav", down = "\\jsmk\\as\\ladderDown.wav" },
 	},
+	isPasswordNote = {
+		["jsmk_as_bk_flowerpot_01"] = true,
+		["jsmk_as_bk_flowerpot_02"] = true,
+		["jsmk_as_bk_flowerpot_03"] = true,
+		["jsmk_as_bk_flowerpot_04"] = true,
+	},
 }
 
 this.kanetWest = {
@@ -40,7 +46,19 @@ this.kanetWest = {
 	name = "Kanet West",
 	herbNodeI = "Herbs I",
 	herbNodeII = "Herbs II",
+	spells = {
+		isPartyBuff = { ["jsmk_as_kanet_enchant_01"] = true, ["jsmk_as_kanet_enchant_02"] = true },
+		joltingTouch01 = "jsmk_as_kanet_shock_02_01",
+		joltingTouch02 = "jsmk_as_kanet_shock_02_02",
+		joltingTouch03 = "jsmk_as_kanet_shock_02_03",
+	},
 	uiID = {
+		passwordMenuId = tes3ui.registerID("KanetWest_Password"),
+		passwordMenuLabelHello = tes3ui.registerID("KanetWest_Password_label_hello"),
+		passwordMenuLabelMay = tes3ui.registerID("KanetWest_Password_label_may"),
+		passwordMenuBorder = tes3ui.registerID("KanetWest_Password_border"),
+		passwordTextInput = tes3ui.registerID("KanetWest_Password_text_input"),
+		levelIpMenu = tes3ui.registerID("KanetWest_LevelUp"),
 		fillbarsLayout = tes3ui.registerID("KanetWest_fillbars_layout"),
 		health = tes3ui.registerID("KanetWest_health"),
 		healthFillbar = tes3ui.registerID("KanetWest_health_fillbar"),
@@ -55,21 +73,23 @@ this.kanetWest = {
 		hungerFillbar = tes3ui.registerID("KanetWest_hunger_fillbar"),
 		hungerIcon = tes3ui.registerID("KanetWest_hunger_icon"),
 	},
-	talkSound = {
-		"\\jsmk\\as\\spider01.wav",
-		"\\jsmk\\as\\spider02.wav",
-		"\\jsmk\\as\\spider03.wav",
-		"\\jsmk\\as\\spider04.wav",
-		"\\jsmk\\as\\spider05.wav",
-		"\\jsmk\\as\\spider21.wav",
-		"\\jsmk\\as\\spider22.wav",
-		"\\jsmk\\as\\spider23.wav",
-		"\\jsmk\\as\\spider24.wav",
-		"\\jsmk\\as\\spider25.wav",
+	sound = {
+		itemPickUp = "jsmk_as_spiderMoan",
+		startUp = "\\jsmk\\as\\startUp.wav",
+		talk = {
+			"\\jsmk\\as\\spider01.wav",
+			"\\jsmk\\as\\spider02.wav",
+			"\\jsmk\\as\\spider03.wav",
+			"\\jsmk\\as\\spider04.wav",
+			"\\jsmk\\as\\spider05.wav",
+			"\\jsmk\\as\\spider21.wav",
+			"\\jsmk\\as\\spider22.wav",
+			"\\jsmk\\as\\spider23.wav",
+			"\\jsmk\\as\\spider24.wav",
+			"\\jsmk\\as\\spider25.wav",
+		},
 	},
-	itemPickUpSound = "jsmk_as_spiderMoan",
 }
-
 this.kanetWest.herbsByRegion = {
 	-- solstheim
 	['moesring mountains region'] = {},
@@ -363,7 +383,6 @@ for _, ingreds in pairs(this.kanetWest.herbsByRegion) do
 end
 
 this.customerContext = { isCustomer = "jsmk_as_customer" }
-
 this.dialogueId = {
 	customerGreeting = 19743273785952331,
 	sellForGold = 249706614257109147,
@@ -371,7 +390,7 @@ this.dialogueId = {
 	accept = 25994134151356712917,
 	decline = 29468443208114009,
 }
-
+this.journal = { intro = "jsmk_as_kanetWest_intro" }
 this.haggle = {
 	bonus = { [1] = 0.15, [2] = 0.2, [3] = 0.2, [4] = 0.25 },
 	penalty = { [1] = 0.05, [2] = 0.1, [3] = 0.1, [4] = 0.15 },

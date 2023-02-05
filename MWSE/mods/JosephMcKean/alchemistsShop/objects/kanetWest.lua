@@ -50,7 +50,7 @@ local function randomIngredTimer()
 	local ingred = getRandomIngred()
 	if ingred and kanetMobile and (kanetMobile.encumbrance.current + ingred.weight) < kanetMobile.encumbrance.base then
 		tes3.addItem({ reference = kanet, item = ingred })
-		tes3.playSound({ reference = kanet, sound = data.kanetWest.itemPickUpSound })
+		tes3.playSound({ reference = kanet, sound = data.kanetWest.sound.itemPickUp })
 	end
 end
 local function startTimers()
@@ -173,25 +173,84 @@ local function kanetTooltip(e)
 end
 event.register("uiObjectTooltip", kanetTooltip)
 
+local function isFriendly(mobileActor)
+	if mobileActor and tes3.mobilePlayer then
+		for _, friendlyActor in pairs(mobileActor.friendlyActors) do
+			if tes3.mobilePlayer == friendlyActor then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+local function isHostile(mobileActor)
+	if mobileActor and tes3.mobilePlayer then
+		for _, hostileActor in pairs(mobileActor.hostileActors) do
+			if tes3.mobilePlayer == hostileActor then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+---@param e spellCastedEventData
+local function partyBuff(e)
+	if e.caster == kanet then
+		if e.target == kanet then
+			if data.kanetWest.spells.isPartyBuff[e.source.id] then
+				for _, mobileActor in pairs(tes3.findActorsInProximity({ reference = e.target, range = 4 })) do
+					if isFriendly(mobileActor) then
+						tes3.cast({
+							reference = kanet,
+							target = mobileActor,
+							spell = data.kanetWest.spells.fleetFeet,
+							instant = true,
+							bypassResistances = true,
+						})
+					end
+				end
+			end
+		end
+	end
+end
+event.register("spellCasted", partyBuff)
+
+---@param e spellTickEventData
+local function joltingTouch(e)
+	local function electricityJump(spellId)
+		for _, mobileActor in pairs(tes3.findActorsInProximity({ reference = e.target, range = 4 })) do
+			log:debug("Find actors in proximity of %s: %s", e.target, mobileActor.reference.id)
+			if isHostile(mobileActor) then
+				tes3.cast({ reference = kanet, target = mobileActor, spell = spellId, instant = false })
+				return
+			end
+		end
+	end
+	if e.caster == kanet then
+		if e.source.id == data.kanetWest.spells.joltingTouch01 then
+			electricityJump(data.kanetWest.spells.joltingTouch02)
+		end
+		if e.source.id == data.kanetWest.spells.joltingTouch02 then
+			electricityJump(data.kanetWest.spells.joltingTouch03)
+		end
+	end
+end
+event.register("spellTick", joltingTouch)
+
 --[[
-	Jigsaw puzzle -> Daedric Translation -> Password
+	Jigsaw puzzle -> Daedric Translation  -> Password
+	Test Note
+	Choose starting spells
+	Testing spells
+	Daedric ABC Chart in Blackletter
+	the Artificial Brilliance perk
+	craft corkbulb bolts
 ]]
 
 local function talkToKanet(message)
 	local buttons = {}
-	table.insert(buttons, {
-		text = "StartUp()",
-		callback = function()
-			tes3.player.data.alchemistsShop.kanetWest.startUp = true
-			tes3.setStatistic({ reference = kanet, attribute = tes3.attribute.speed, value = tes3.mobilePlayer.speed.current })
-			tes3.player.data.alchemistsShop.kanetWest.follow = true
-			tes3.setAIFollow({ reference = kanet, target = tes3.player })
-			tes3.messageBox("Following")
-		end,
-		showRequirements = function()
-			return not tes3.player.data.alchemistsShop.kanetWest.startUp
-		end,
-	})
 	table.insert(buttons, {
 		text = "Follow()",
 		callback = function()
@@ -232,32 +291,89 @@ local function talkToKanet(message)
 		cancels = true,
 		cancelText = "Quit()",
 	})
-	tes3.playSound({ soundPath = table.choice(data.kanetWest.talkSound) })
+	tes3.playSound({ reference = kanet, soundPath = table.choice(data.kanetWest.sound.talk) })
 end
+
+local function levelUp()
+	local levelUpMenu = tes3ui.createMenu({ id = data.kanetWest.uiID.levelIpMenu, fixedFrame = true })
+
+end
+
 ---@param e activateEventData
 local function activateKanet(e)
 	if common.inShop then
 		if e.target == kanet and e.activator == tes3.player then
-			talkToKanet("[Clang-clank-clink]")
+			if not tes3.player.data.alchemistsShop.kanetWest.startUp then
+				local passwordMenu = tes3ui.createMenu({ id = data.kanetWest.uiID.passwordMenuId, fixedFrame = true })
+				passwordMenu.minWidth = 400
+				local passwordMenuLabelHello = passwordMenu:createLabel({
+					id = data.kanetWest.uiID.passwordMenuLabelHello,
+					text = "Hello, Athrisea.",
+				})
+				passwordMenuLabelHello.color = tes3ui.getPalette(tes3.palette.headerColor)
+				passwordMenuLabelHello.borderAllSides = 10
+				passwordMenuLabelHello.wrapText = true
+				passwordMenuLabelHello.justifyText = "center"
+				local passwordMenuLabelMay = passwordMenu:createLabel({
+					id = data.kanetWest.uiID.passwordMenuLabelMay,
+					text = "May I have your password please?",
+				})
+				passwordMenuLabelMay.borderAllSides = 10
+				passwordMenuLabelMay.wrapText = true
+				passwordMenuLabelMay.justifyText = "center"
+				local passwordMenuBorder = passwordMenu:createThinBorder({ id = data.kanetWest.uiID.passwordMenuBorder })
+				passwordMenuBorder.height = 30
+				passwordMenuBorder.width = 300
+				passwordMenuBorder.absolutePosAlignX = 0.5
+				passwordMenuBorder.borderAllSides = 10
+				passwordMenuBorder.borderBottom = 20
+				passwordMenuBorder.paddingAllSides = 5
+				passwordMenuBorder.paddingLeft = 8
+				passwordMenuBorder.consumeMouseEvents = true
+				local passwordTextInput = passwordMenuBorder:createTextInput({ id = data.kanetWest.uiID.passwordTextInput })
+				passwordTextInput.color = tes3ui.getPalette(tes3.palette.whiteColor)
+				passwordTextInput.absolutePosAlignX = 0.5
+				passwordTextInput.absolutePosAlignY = 0.5
+				passwordTextInput.font = 2
+				passwordTextInput.consumeMouseEvents = false
+				passwordTextInput:register("keyEnter", function(e)
+					if passwordTextInput.text:lower() == "flowerpot" then
+						tes3.playSound({ reference = kanet, soundPath = data.kanetWest.sound.startUp, volume = 0.9, pitch = 0.9 })
+						tes3ui.leaveMenuMode()
+						tes3ui.findMenu(data.kanetWest.uiID.passwordMenuId):destroy()
+						tes3.player.data.alchemistsShop.kanetWest.startUp = true
+						tes3.setStatistic({ reference = kanet, attribute = tes3.attribute.speed, value = tes3.mobilePlayer.speed.current })
+						tes3.player.data.alchemistsShop.kanetWest.follow = true
+						tes3.setAIFollow({ reference = kanet, target = tes3.player })
+						timer.delayOneFrame(function()
+							levelUp()
+							timer.delayOneFrame(function()
+								tes3.messageBox({
+									message = "Kanet West has given you the Artificial Brilliance perk. While Kanet West is follwing you around, you gain a bonus to your intelligence and all party members are more accurate in their attacks against Dwemer constructs.",
+									buttons = { "OK" },
+									callback = function()
+										tes3.messageBox("Following")
+										tes3.updateJournal({ id = data.journal.intro, index = 100, showMessage = true })
+									end,
+								})
+							end)
+						end)
+					end
+					tes3ui.acquireTextInput(nil)
+					passwordMenu:updateLayout()
+				end)
+				passwordMenuBorder:register("mouseClick", function()
+					tes3ui.acquireTextInput(passwordTextInput)
+				end)
+				tes3ui.acquireTextInput(passwordTextInput)
+				tes3ui.enterMenuMode(data.kanetWest.uiID.passwordMenuId)
+			else
+				talkToKanet("[Clang-clank-clink]")
+			end
 		end
 	end
 end
 event.register("activate", activateKanet)
---[[
-    [Makes metal cling-cling sounds]
-    1: startUp() TalkedToPC == 0
-        ;lua tes3.player.data.alchemistsShop.kanetWest.startUp = true
-        ;lua timer.start({ duration = 1, type = timer.real, callback = function() tes3.closeDialogueMenu({}) end, })
-        PlaySound3D "jsmk_as_spider02"
-        MessageBox "Kanet West has given you the Artificial Brilliance perk. While Kanet West is follwing you around, you gain a bonus to your intelligence and all party members are more accurate in their attacks against Dwemer constructs." "OK"
-        Journal jsmk_as_kanetWest_intro 100
-    2: craftBolt() TalkedToPC == 1
-    3: follow() TalkedToPC == 1
-    4: wait() TalkedToPC == 1
-    5: openInventory() TalkedToPC == 1
-    6: talk() TalkedToPC == 1
-    7: quit()
-]]
 
 local function showIngredientsInTube()
 	if kanet then
