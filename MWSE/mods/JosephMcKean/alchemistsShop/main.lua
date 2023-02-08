@@ -33,7 +33,8 @@ end
 local function getPotionBrewed(potionRequested)
 	for _, itemStack in pairs(tes3.mobilePlayer.inventory) do
 		if itemStack.object.objectType == tes3.objectType.alchemy then
-			local potion = itemStack.object ---@type tes3alchemy
+			local potion = itemStack.object ---@type any
+			---@cast potion tes3alchemy
 			local matched = false
 			for _, effect in ipairs(potion.effects) do
 				if effect and (effect.id == potionRequested.effectId) then
@@ -143,6 +144,7 @@ local function onInit()
 		-- item scrips
 		require("JosephMcKean.alchemistsShop.objects")
 		-- npc scripts
+		require("JosephMcKean.alchemistsShop.kanetWest")
 		event.register("infoGetText", greetCustomer)
 		event.register("cellChanged", clearCustomerData)
 	end

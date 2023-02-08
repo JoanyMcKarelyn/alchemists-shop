@@ -169,7 +169,7 @@ local function toSkip(ingred)
 			return true
 		end
 	end
-	return string.find(ingred.name, "Deprecated") or string.find(ingred.name, "DEPRECATED")
+	return string.startswith(ingred.name, "<")
 end
 
 local function getIngredsByEffect()

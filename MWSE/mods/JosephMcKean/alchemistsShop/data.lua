@@ -9,6 +9,8 @@ this.defaultPlayerData = {
 		enabled = false, -- Dead Kanet is disabled and Kanet is enabled
 		startUp = false, -- begin following the player
 		follow = false, -- Kanet is currently following the player
+		level = 1, -- used in scripted leveling, means kanet has (level - 1) abilities chosen
+		abilities = {},
 		stats = {
 			energy = 100, -- determines health, increased by resting
 			literacy = 0, -- determines magicka, increased by reading
@@ -26,6 +28,11 @@ this.defaultPlayerData = {
 
 this.shop = {
 	cellId = "Aurelia Batienne: Alchemist",
+	daedricAlphabet = {
+		id = "jsmk_sc_daedric_abcs",
+		openSound = "\\jsmk\\bd\\bookOpen.wav",
+		closeSound = "\\jsmk\\bd\\bookClose.wav",
+	},
 	ladder = {
 		id = "jsmk_as_de_shack_ladder",
 		markerUp = { -24.315, 45.796, 215 },
@@ -39,18 +46,122 @@ this.shop = {
 		["jsmk_as_bk_flowerpot_04"] = true,
 	},
 }
-
 this.kanetWest = {
 	deadKanetId = "jsmk_as_kanetWest_dead",
 	id = "jsmk_as_kanet_west",
 	name = "Kanet West",
 	herbNodeI = "Herbs I",
 	herbNodeII = "Herbs II",
+	abilities = {
+		{
+			category = "shock",
+			level = 1,
+			name = "Dancing Bolts",
+			description = "Shock Damage 12 to 20 pts in 5 ft on Target",
+			cost = 5,
+			path = "icons\\s\\tx_s_shock_dmg.tga",
+			callback = function(kanet)
+				tes3.addSpell({ reference = kanet, spell = this.kanetWest.spells.dancingBolts })
+				tes3.messageBox("Spell Dancing Bolts has been added.")
+			end,
+		},
+		{
+			category = "shock",
+			level = 2,
+			name = "Jolting Touch",
+			description = "Target: Shock Damage 16 to 27 pts on Touch\nJump Target (x2): Shock Damage 12 to 20 pts",
+			cost = 10,
+			path = "icons\\s\\tx_s_shock_dmg.tga",
+			callback = function(kanet)
+				tes3.addSpell({ reference = kanet, spell = this.kanetWest.spells.joltingTouch01 })
+				tes3.messageBox("Spell Jolting Shock has been added.")
+			end,
+		},
+		{
+			category = "shock",
+			level = 3,
+			name = "Shock",
+			description = "Shock Damage 17 to 24 pts in 5 ft on Target",
+			cost = 15,
+			path = "icons\\s\\tx_s_shock_dmg.tga",
+			callback = function(kanet)
+				tes3.addSpell({ reference = kanet, spell = this.kanetWest.spells.shock })
+				tes3.messageBox("Spell Shock has been added.")
+			end,
+		},
+		{
+			category = "enchant",
+			level = 2,
+			name = "Fleet Feet",
+			description = "Fortify Agility 5 pts for 30 secs on Party\nFortify Speed 5 pts for 30 secs on Party",
+			cost = 10,
+			path = "icons\\s\\tx_s_ftfy_attrib.tga",
+			callback = function(kanet)
+				tes3.addSpell({ reference = kanet, spell = this.kanetWest.spells.fleetingFeet })
+				tes3.messageBox("Spell Fleet Feet has been added.")
+			end,
+		},
+		{
+			category = "enchant",
+			level = 3,
+			name = "Against the Elements",
+			description = "Resist Fire 5 pts for 60 secs on Party\n" .. "Resist Frost 5 pts for 60 secs on Party\n" ..
+			"Resist Shock 5 pts for 60 secs on Party\n" .. "Resist Poison 5 pts for 60 secs on Party",
+			cost = 15,
+			path = "icons\\s\\tx_s_rst_fire.tga",
+			callback = function(kanet)
+				tes3.addSpell({ reference = kanet, spell = this.kanetWest.spells.againstTheElements })
+				tes3.messageBox("Spell Against the Elements has been added.")
+			end,
+		},
+		{
+			category = "passive",
+			level = 1,
+			name = "Fast Runner",
+			description = "Increases Kanet West's Speed",
+			path = "icons\\s\\tx_s_ftfy_attrib.tga",
+			callback = function(kanet)
+				tes3.addSpell({ reference = kanet, spell = this.kanetWest.spells.fastRunner })
+				tes3.messageBox("Ability Fast Runner has been added.")
+			end,
+		},
+		{
+			category = "passive",
+			level = 2,
+			name = "Machine Learning",
+			description = "Gain scaling Fortify Attack effect and Damage as Kanet West levels",
+			path = "icons\\s\\tx_s_ftfy_attack.tga",
+			callback = function(kanet)
+				tes3.addSpell({ reference = kanet, spell = this.kanetWest.spells.machineLearning })
+				tes3.messageBox("Ability Machine Learning has been added.")
+			end,
+		},
+		{
+			category = "passive",
+			level = 3,
+			name = "Hardcore Metal",
+			description = "Grants a +15% Damage bonus with melee attack",
+			path = "icons\\s\\tx_s_ftfy_attack.tga",
+			callback = function(kanet)
+				kanet.object.attacks[1].min = math.ceil(kanet.object.attacks[1].min * 1.15)
+				kanet.object.attacks[2].min = math.ceil(kanet.object.attacks[2].min * 1.15)
+				kanet.object.attacks[3].min = math.ceil(kanet.object.attacks[3].min * 1.15)
+				kanet.object.attacks[1].max = math.ceil(kanet.object.attacks[1].max * 1.15)
+				kanet.object.attacks[2].max = math.ceil(kanet.object.attacks[2].max * 1.15)
+				kanet.object.attacks[3].max = math.ceil(kanet.object.attacks[3].max * 1.15)
+			end,
+		},
+	},
 	spells = {
-		isPartyBuff = { ["jsmk_as_kanet_enchant_01"] = true, ["jsmk_as_kanet_enchant_02"] = true },
+		dancingBolts = "jsmk_as_kanet_shock_01",
 		joltingTouch01 = "jsmk_as_kanet_shock_02_01",
 		joltingTouch02 = "jsmk_as_kanet_shock_02_02",
 		joltingTouch03 = "jsmk_as_kanet_shock_02_03",
+		shock = "jsmk_as_kanet_shock_03",
+		fleetingFeet = "jsmk_as_kanet_enchant_01",
+		againstTheElements = "jsmk_as_kanet_enchant_02",
+		fastRunner = "jsmk_as_kanet_passive_01",
+		machineLearning = "jsmk_as_kanet_passive_02",
 	},
 	uiID = {
 		passwordMenuId = tes3ui.registerID("KanetWest_Password"),
@@ -58,7 +169,15 @@ this.kanetWest = {
 		passwordMenuLabelMay = tes3ui.registerID("KanetWest_Password_label_may"),
 		passwordMenuBorder = tes3ui.registerID("KanetWest_Password_border"),
 		passwordTextInput = tes3ui.registerID("KanetWest_Password_text_input"),
-		levelIpMenu = tes3ui.registerID("KanetWest_LevelUp"),
+		passwordMenuCancel = tes3ui.registerID("KanetWest_Password_cancel_button"),
+		levelUpMenu = tes3ui.registerID("KanetWest_LevelUp"),
+		levelUpTextBlock = tes3ui.registerID("KanetWest_LevelUp_text_block"),
+		levelUpTextKanet = tes3ui.registerID("KanetWest_LevelUp_text_kanet"),
+		levelUpTextChoose = tes3ui.registerID("KanetWest_LevelUp_text_choose"),
+		levelUpScrollPanes = tes3ui.registerID("KanetWest_LevelUp_scroll_panes"),
+		levelUpShockPane = tes3ui.registerID("KanetWest_LevelUp_shock_pane"),
+		levelUpEnchantPane = tes3ui.registerID("KanetWest_LevelUp_enchant_pane"),
+		levelUpPassivePane = tes3ui.registerID("KanetWest_LevelUp_passive_pane"),
 		fillbarsLayout = tes3ui.registerID("KanetWest_fillbars_layout"),
 		health = tes3ui.registerID("KanetWest_health"),
 		healthFillbar = tes3ui.registerID("KanetWest_health_fillbar"),
@@ -88,7 +207,12 @@ this.kanetWest = {
 			"\\jsmk\\as\\spider24.wav",
 			"\\jsmk\\as\\spider25.wav",
 		},
+		wrongPassword = "\\jsmk\\as\\wrongPassword.wav",
 	},
+}
+this.kanetWest.isPartyBuff = {
+	[this.kanetWest.spells.fleetingFeet] = true,
+	[this.kanetWest.spells.againstTheElements] = true,
 }
 this.kanetWest.herbsByRegion = {
 	-- solstheim

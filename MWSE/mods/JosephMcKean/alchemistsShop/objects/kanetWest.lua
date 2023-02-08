@@ -1,8 +1,12 @@
+-- This script is deprecated
 local common = require("JosephMcKean.alchemistsShop.common")
 local data = require("JosephMcKean.alchemistsShop.data")
+local ui = require("JosephMcKean.alchemistsShop.kanetWest.ui")
 local log = require("logging.logger").new({ name = data.mod, logLevel = "DEBUG" })
 
 local kanet ---@type tes3reference
+local this = {}
+this.ref = kanet
 local deadKanet ---@type tes3reference
 local lastHerbCount
 
@@ -20,18 +24,21 @@ local lastHerbCount
 ---@param e spellResistEventData
 local function noFriendlyShock(e)
 	local function isPlayerParty(ref)
-		return (ref == tes3.player) or (tes3.getCurrentAIPackageId(ref) == tes3.aiPackage.follow)
+		log:debug("Checking if %s is in the player party", ref and ref.id)
+		return ref and (ref == tes3.player) or (tes3.getCurrentAIPackageId(ref) == tes3.aiPackage.follow)
 	end
-	if e.caster == kanet then
-		if e.target and isPlayerParty(e.target) then
-			local isHarmful = false
-			for _, effect in ipairs(e.source.effects) do
-				if not isHarmful and effect.object.isHarmful then
-					isHarmful = true
+	if tes3.player.data.alchemistsShop.kanetWest.startUp then
+		if e.caster == kanet then
+			if e.target and isPlayerParty(e.target) then
+				local isHarmful = false
+				for _, effect in ipairs(e.source.effects) do
+					if not isHarmful and effect.object.isHarmful then
+						isHarmful = true
+					end
 				end
-			end
-			if isHarmful then
-				e.resistedPercent = 100
+				if isHarmful then
+					e.resistedPercent = 100
+				end
 			end
 		end
 	end
@@ -41,10 +48,12 @@ event.register("spellResist", noFriendlyShock)
 ---@return tes3ingredient?
 local function getRandomIngred()
 	if kanet.cell.region then
-		local ingred = table.choice(data.kanetWest.herbsByRegion[kanet.cell.region.id:lower()])
-		return ingred and tes3.getObject(ingred)
+		local ingred = tes3.getObject(table.choice(data.kanetWest.herbsByRegion[kanet.cell.region.id:lower()])) ---@type any
+		---@cast ingred tes3ingredient?
+		return ingred
 	end
 end
+
 local function randomIngredTimer()
 	local kanetMobile = kanet.mobile
 	local ingred = getRandomIngred()
@@ -53,6 +62,7 @@ local function randomIngredTimer()
 		tes3.playSound({ reference = kanet, sound = data.kanetWest.sound.itemPickUp })
 	end
 end
+
 local function startTimers()
 	lastHerbCount = -1
 	if tes3.player.data.alchemistsShop.kanetWest.startUp then
@@ -219,6 +229,7 @@ event.register("spellCasted", partyBuff)
 
 ---@param e spellTickEventData
 local function joltingTouch(e)
+
 	local function electricityJump(spellId)
 		for _, mobileActor in pairs(tes3.findActorsInProximity({ reference = e.target, range = 4 })) do
 			log:debug("Find actors in proximity of %s: %s", e.target, mobileActor.reference.id)
@@ -228,6 +239,7 @@ local function joltingTouch(e)
 			end
 		end
 	end
+
 	if e.caster == kanet then
 		if e.source.id == data.kanetWest.spells.joltingTouch01 then
 			electricityJump(data.kanetWest.spells.joltingTouch02)
@@ -240,10 +252,15 @@ end
 event.register("spellTick", joltingTouch)
 
 --[[
-	Jigsaw puzzle -> Daedric Translation  -> Password
-	Test Note
+Today's Goals: 	
+	Press enter when the password is wrong clear the field and play a failed sound
+	UI Stuff
 	Choose starting spells
+	Maybe add a cancel button
 	Testing spells
+	All Spells
+Future Goals:
+ 	Compatibility with keldium's companion leveler
 	Daedric ABC Chart in Blackletter
 	the Artificial Brilliance perk
 	craft corkbulb bolts
@@ -294,9 +311,111 @@ local function talkToKanet(message)
 	tes3.playSound({ reference = kanet, soundPath = table.choice(data.kanetWest.sound.talk) })
 end
 
-local function levelUp()
-	local levelUpMenu = tes3ui.createMenu({ id = data.kanetWest.uiID.levelIpMenu, fixedFrame = true })
+local function setAttributes()
+	tes3.modStatistic({ attribute = tes3.attribute.intelligence, value = math.random(1, 5), reference = kanet })
+	tes3.modStatistic({ attribute = tes3.attribute.willpower, value = math.random(1, 5), reference = kanet })
+	tes3.modStatistic({ attribute = table.choice(tes3.attribute), value = math.random(1, 5), reference = kanet })
+	tes3.modStatistic({ name = "health", value = math.round(kanet.mobile.endurance.base / 10), reference = kanet })
+	if tes3.player.data.alchemistsShop.kanetWest.abilities["Machine Learning"] then
+		local machineLearning = tes3.getObject(data.kanetWest.spells.machineLearning) ---@type any
+		---@cast machineLearning tes3spell
+		machineLearning.effects[1].min = machineLearning.effects[1].min + 1
+		machineLearning.effects[1].max = machineLearning.effects[1].max + 1
+		kanet.object.attacks[1].max = kanet.object.attacks[1].max + 1
+		kanet.object.attacks[2].max = kanet.object.attacks[2].max + 1
+		kanet.object.attacks[3].max = kanet.object.attacks[3].max + 1
+	end
+end
 
+local function levelUp()
+	local levelUpMenu = tes3ui.createMenu({ id = data.kanetWest.uiID.levelUpMenu, fixedFrame = true })
+	local levelUpTextBlock = levelUpMenu:createBlock({ id = data.kanetWest.uiID.levelUpTextBlock })
+	levelUpTextBlock.minWidth = 300
+	levelUpTextBlock.autoHeight = true
+	levelUpTextBlock.widthProportional = 1.0
+	levelUpTextBlock.flowDirection = "top_to_bottom"
+	local levelUpTextKanet = levelUpTextBlock:createLabel({
+		id = data.kanetWest.uiID.levelUpTextKanet,
+		text = string.format("Kanet West has ascended to Level %s", tes3.player.data.alchemistsShop.kanetWest.level),
+	})
+	levelUpTextKanet.widthProportional = 1.0
+	levelUpTextKanet.wrapText = true
+	levelUpTextKanet.justifyText = "center"
+	local levelUpTextChoose = levelUpTextBlock:createLabel({
+		id = data.kanetWest.uiID.levelUpTextChoose,
+		text = "Choose an ability",
+	})
+	levelUpTextChoose.widthProportional = 1.0
+	levelUpTextChoose.borderAllSides = 10
+	levelUpTextChoose.wrapText = true
+	levelUpTextChoose.justifyText = "center"
+	local levelUpScrollPanes = levelUpMenu:createBlock({ id = data.kanetWest.uiID.levelUpScrollPanes })
+	levelUpScrollPanes.flowDirection = "left_to_right"
+	levelUpScrollPanes.autoWidth = true
+	levelUpScrollPanes.autoHeight = true
+	levelUpScrollPanes.height = 600
+	levelUpScrollPanes.minWidth = 900
+	levelUpScrollPanes.widthProportional = 1.0
+	local levelUpShockPane = levelUpScrollPanes:createVerticalScrollPane({ id = data.kanetWest.uiID.levelUpShockPane })
+	levelUpShockPane.minWidth = 300
+	levelUpShockPane.borderAllSides = 5
+	local levelUpEnchantPane = levelUpScrollPanes:createVerticalScrollPane({ id = data.kanetWest.uiID.levelUpEnchantPane })
+	levelUpEnchantPane.minWidth = 300
+	levelUpEnchantPane.borderAllSides = 5
+	local levelUpPassivePane = levelUpScrollPanes:createVerticalScrollPane({ id = data.kanetWest.uiID.levelUpPassivePane })
+	levelUpPassivePane.minWidth = 300
+	levelUpEnchantPane.borderAllSides = 5
+	for index, ability in ipairs(data.kanetWest.abilities) do
+		log:debug("Creating UI ability block for %s", ability.name)
+		if not tes3.player.data.alchemistsShop.kanetWest.abilities[ability.name] or ability.level <=
+		tes3.player.data.alchemistsShop.kanetWest.level then
+			log:debug("%s can be chosen at level %s", ability.name, tes3.player.data.alchemistsShop.kanetWest.level)
+			local menu = (ability.category == "shock") and levelUpShockPane or (ability.category == "enchant") and
+			             levelUpEnchantPane or levelUpPassivePane
+			log:debug("Creating element in %s", menu.id)
+			local abilityBlock = menu:createThinBorder({ id = "KanetWest_Ability_" .. tostring(index) })
+			abilityBlock.flowDirection = "left_to_right"
+			abilityBlock.autoHeight = true
+			abilityBlock.widthProportional = 1
+			local abilityIconBlock = abilityBlock:createBlock({ id = "KanetWest_Ability_icon_block_" .. tostring(index) })
+			abilityIconBlock.autoHeight = true
+			abilityIconBlock.autoWidth = true
+			local abilityIcon = abilityIconBlock:createImage({
+				id = "KanetWest_Ability_icon_" .. tostring(index),
+				path = ability.path,
+			})
+			abilityIcon.absolutePosAlignX = 0.5
+			abilityIcon.absolutePosAlignY = 1
+			local abilityTextBlock = abilityBlock:createBlock({ id = "KanetWest_Ability_text_block_" .. tostring(index) })
+			abilityTextBlock.width = 250
+			abilityTextBlock.autoHeight = true
+			abilityTextBlock.borderAllSides = 2
+			abilityTextBlock.flowDirection = "top_to_bottom"
+			local abilityLabelName = abilityTextBlock:createLabel({ text = ability.name })
+			abilityLabelName.color = tes3ui.getPalette(tes3.palette.whiteColor)
+			local labelDescription = abilityTextBlock:createLabel({ text = ability.description })
+			labelDescription.wrapText = true
+			labelDescription.widthProportional = 1.0
+			if ability.cost then
+				abilityTextBlock:createLabel({ text = "Cost: " .. ability.cost })
+			end
+			abilityBlock.consumeMouseEvents = true
+			abilityBlock:register("mouseClick", function()
+				tes3ui.leaveMenuMode()
+				tes3ui.findMenu(data.kanetWest.uiID.levelUpMenu):destroy()
+				tes3.player.data.alchemistsShop.kanetWest.abilities[ability.name] = true
+				tes3.player.data.alchemistsShop.kanetWest.level = tes3.player.data.alchemistsShop.kanetWest.level + 1
+				ability.callback(kanet)
+				setAttributes()
+				if tes3.player.data.alchemistsShop.kanetWest.level <= math.min(tes3.player.object.level, 20) then
+					timer.delayOneFrame(levelUp)
+				end
+			end)
+			menu[index] = abilityBlock
+		end
+	end
+	tes3ui.enterMenuMode(data.kanetWest.uiID.levelUpMenu)
+	tes3.playSound({ sound = "skillraise" })
 end
 
 ---@param e activateEventData
@@ -304,69 +423,7 @@ local function activateKanet(e)
 	if common.inShop then
 		if e.target == kanet and e.activator == tes3.player then
 			if not tes3.player.data.alchemistsShop.kanetWest.startUp then
-				local passwordMenu = tes3ui.createMenu({ id = data.kanetWest.uiID.passwordMenuId, fixedFrame = true })
-				passwordMenu.minWidth = 400
-				local passwordMenuLabelHello = passwordMenu:createLabel({
-					id = data.kanetWest.uiID.passwordMenuLabelHello,
-					text = "Hello, Athrisea.",
-				})
-				passwordMenuLabelHello.color = tes3ui.getPalette(tes3.palette.headerColor)
-				passwordMenuLabelHello.borderAllSides = 10
-				passwordMenuLabelHello.wrapText = true
-				passwordMenuLabelHello.justifyText = "center"
-				local passwordMenuLabelMay = passwordMenu:createLabel({
-					id = data.kanetWest.uiID.passwordMenuLabelMay,
-					text = "May I have your password please?",
-				})
-				passwordMenuLabelMay.borderAllSides = 10
-				passwordMenuLabelMay.wrapText = true
-				passwordMenuLabelMay.justifyText = "center"
-				local passwordMenuBorder = passwordMenu:createThinBorder({ id = data.kanetWest.uiID.passwordMenuBorder })
-				passwordMenuBorder.height = 30
-				passwordMenuBorder.width = 300
-				passwordMenuBorder.absolutePosAlignX = 0.5
-				passwordMenuBorder.borderAllSides = 10
-				passwordMenuBorder.borderBottom = 20
-				passwordMenuBorder.paddingAllSides = 5
-				passwordMenuBorder.paddingLeft = 8
-				passwordMenuBorder.consumeMouseEvents = true
-				local passwordTextInput = passwordMenuBorder:createTextInput({ id = data.kanetWest.uiID.passwordTextInput })
-				passwordTextInput.color = tes3ui.getPalette(tes3.palette.whiteColor)
-				passwordTextInput.absolutePosAlignX = 0.5
-				passwordTextInput.absolutePosAlignY = 0.5
-				passwordTextInput.font = 2
-				passwordTextInput.consumeMouseEvents = false
-				passwordTextInput:register("keyEnter", function(e)
-					if passwordTextInput.text:lower() == "flowerpot" then
-						tes3.playSound({ reference = kanet, soundPath = data.kanetWest.sound.startUp, volume = 0.9, pitch = 0.9 })
-						tes3ui.leaveMenuMode()
-						tes3ui.findMenu(data.kanetWest.uiID.passwordMenuId):destroy()
-						tes3.player.data.alchemistsShop.kanetWest.startUp = true
-						tes3.setStatistic({ reference = kanet, attribute = tes3.attribute.speed, value = tes3.mobilePlayer.speed.current })
-						tes3.player.data.alchemistsShop.kanetWest.follow = true
-						tes3.setAIFollow({ reference = kanet, target = tes3.player })
-						timer.delayOneFrame(function()
-							levelUp()
-							timer.delayOneFrame(function()
-								tes3.messageBox({
-									message = "Kanet West has given you the Artificial Brilliance perk. While Kanet West is follwing you around, you gain a bonus to your intelligence and all party members are more accurate in their attacks against Dwemer constructs.",
-									buttons = { "OK" },
-									callback = function()
-										tes3.messageBox("Following")
-										tes3.updateJournal({ id = data.journal.intro, index = 100, showMessage = true })
-									end,
-								})
-							end)
-						end)
-					end
-					tes3ui.acquireTextInput(nil)
-					passwordMenu:updateLayout()
-				end)
-				passwordMenuBorder:register("mouseClick", function()
-					tes3ui.acquireTextInput(passwordTextInput)
-				end)
-				tes3ui.acquireTextInput(passwordTextInput)
-				tes3ui.enterMenuMode(data.kanetWest.uiID.passwordMenuId)
+				ui.createPasswordMenu()
 			else
 				talkToKanet("[Clang-clank-clink]")
 			end
@@ -400,6 +457,7 @@ end
 event.register("simulate", showIngredientsInTube)
 
 local function talkDeadKanet(message)
+
 	local function wakeKanet()
 		tes3.fadeOut({ duration = 0.25 })
 		deadKanet:disable()
@@ -410,6 +468,7 @@ local function talkDeadKanet(message)
 		tes3.player.data.alchemistsShop.kanetWest.enabled = true
 		tes3.fadeIn({ duration = 2.75 })
 	end
+
 	local function forceWakeKanet()
 		tes3.cast({
 			reference = deadKanet,
@@ -421,6 +480,7 @@ local function talkDeadKanet(message)
 		tes3.mobilePlayer:applyDamage({ damage = math.random(5, 15), resistAttribute = tes3.effectAttribute.resistShock })
 		wakeKanet()
 	end
+
 	local buttons = {}
 	table.insert(buttons, {
 		text = "Try To Repair It (Armorer)",
@@ -545,3 +605,5 @@ local function getKanetWestRef()
 	end
 end
 event.register("cellChanged", getKanetWestRef)
+
+return this
