@@ -22,5 +22,7 @@ All is free to use. But if you want to use the following meshes, textures, and s
 Extra thanks to:
 
 - [Morrowind Modding Community](https://discord.gg/pHdzwcaN), for the continue support and suggestion during the making of this mod
-- [DimNussens](https://www.nexusmods.com/morrowind/users/165521388?tab=user+files), for coming up with the name Aurelia Batienne
+- [Hrnchamd](https://www.nexusmods.com/morrowind/users/843673?tab=user+files), for the Portrait of Aurelia Batienne (Extras\aurelia_hrnchamd_edit.jpg)
 - [Orion](https://www.nexusmods.com/morrowind/users/56490062?tab=user+files), for coming up with the name Athrisea Trandel
+- [MISTERSMELLIES](https://www.nexusmods.com/morrowind/users/38690080?tab=user+files), for painting Arkngthand Sunset (Extras\arkngthand.png)
+- [DimNussens](https://www.nexusmods.com/morrowind/users/165521388?tab=user+files), for coming up with the name Aurelia Batienne

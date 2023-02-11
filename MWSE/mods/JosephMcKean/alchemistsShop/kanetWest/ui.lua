@@ -62,7 +62,6 @@ local function levelUp()
 	levelUpPassivePane.minHeight = 600
 	levelUpPassivePane.borderAllSides = 5
 	for index, ability in ipairs(data.kanetWest.abilities) do
-		log:debug("Creating UI ability block for %s", ability.name)
 		if (not tes3.player.data.alchemistsShop.kanetWest.abilities[ability.name]) or
 		(ability.level <= tes3.player.data.alchemistsShop.kanetWest.level) then
 			local menu = (ability.category == "shock") and levelUpShockPane or (ability.category == "enchant") and
@@ -99,7 +98,6 @@ local function levelUp()
 				costLabel = abilityTextBlock:createLabel({ text = "Cost: " .. ability.cost })
 			end
 			abilityBlock.consumeMouseEvents = true
-			log:debug("abilityBlock.consumeMouseEvents = %s", abilityBlock.consumeMouseEvents)
 			abilityBlock:register("mouseOver", function()
 				labelDescription.color = tes3ui.getPalette(tes3.palette.whiteColor)
 				if costLabel then
@@ -125,10 +123,8 @@ local function levelUp()
 					timer.delayOneFrame(levelUp)
 				end
 			end)
-			log:debug("abilityBlock:register(mouseClick)")
 		end
 	end
-	log:debug("Finished looping through the abilities table")
 	tes3ui.enterMenuMode(data.kanetWest.uiID.levelUpMenu)
 	tes3.playSound({ sound = "skillraise" })
 end
@@ -177,6 +173,7 @@ function this.createPasswordMenu(kanet)
 			tes3.player.data.alchemistsShop.kanetWest.startUp = true
 			tes3.setStatistic({ reference = kanet, attribute = tes3.attribute.speed, value = tes3.mobilePlayer.speed.base })
 			tes3.player.data.alchemistsShop.kanetWest.follow = true
+			kanet.context["companion"] = 1 -- mwscript dialogue companion share
 			tes3.setAIFollow({ reference = kanet, target = tes3.player })
 			timer.delayOneFrame(function()
 				if tes3.player.data.alchemistsShop.kanetWest.level <= math.min(tes3.player.object.level, 20) then

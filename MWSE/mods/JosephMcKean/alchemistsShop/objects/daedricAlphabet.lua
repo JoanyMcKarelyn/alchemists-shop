@@ -29,7 +29,7 @@ event.register("activate", onActivateScripture, { priority = 950 }) -- higher th
 
 --- @param e convertReferenceToItemEventData
 local function onConvertReferenceToItem(e)
-	if e.reference.object.id == data.maristScripture.id then
+	if e.reference.object.id == scriptureId then
 		e.reference.data.bookSwitchState = nil
 	end
 end
@@ -37,7 +37,7 @@ event.register("convertReferenceToItem", onConvertReferenceToItem)
 
 --- @param e referenceSceneNodeCreatedEventData
 local function onReferenceSceneNodeCreated(e)
-	if e.reference.object.id == data.maristScripture.id then
+	if e.reference.object.id == scriptureId then
 		e.reference.sceneNode.children[1].switchIndex = 0 -- set switchNode to Closed
 		e.reference.data.bookSwitchState = e.reference.sceneNode.children[1].switchIndex
 		e.reference.modified = true

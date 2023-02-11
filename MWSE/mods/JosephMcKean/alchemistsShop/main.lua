@@ -150,3 +150,5 @@ local function onInit()
 	end
 end
 event.register("initialized", onInit)
+
+require("JosephMcKean.alchemistsShop.mcm")

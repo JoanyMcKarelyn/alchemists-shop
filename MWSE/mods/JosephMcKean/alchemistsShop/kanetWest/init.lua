@@ -1,4 +1,5 @@
 local common = require("JosephMcKean.alchemistsShop.common")
+local config = require("JosephMcKean.alchemistsShop.config")
 local data = require("JosephMcKean.alchemistsShop.data")
 local ui = require("JosephMcKean.alchemistsShop.kanetWest.ui")
 local log = require("logging.logger").new({ name = data.mod, logLevel = "DEBUG" })
@@ -12,15 +13,15 @@ local lastHerbCount
 ---@param e spellResistEventData
 local function noFriendlyShock(e)
 	local function isPlayerParty(ref)
-		log:debug("Checking if %s is in the player party", ref and ref.id)
-		return ref and (ref == tes3.player) or (tes3.getCurrentAIPackageId(ref) == tes3.aiPackage.follow)
+		return ref and (ref == tes3.player) or (tes3.getCurrentAIPackageId({ reference = ref }) == tes3.aiPackage.follow)
 	end
 	if tes3.player.data.alchemistsShop.kanetWest.startUp then
 		if e.caster == kanet then
-			if e.target and isPlayerParty(e.target) then
+			if e.target and ((e.target == kanet) or isPlayerParty(e.target)) then
 				local isHarmful = false
 				for _, effect in ipairs(e.source.effects) do
-					if not isHarmful and effect.object.isHarmful then
+					if not isHarmful and effect.object and effect.object.isHarmful then
+						log:debug("Effect %s is Harmful", effect.object.name)
 						isHarmful = true
 					end
 				end
@@ -33,38 +34,15 @@ local function noFriendlyShock(e)
 end
 event.register("spellResist", noFriendlyShock)
 
----@return tes3ingredient?
-local function getRandomIngred()
-	if kanet.cell.region then
-		local ingred = tes3.getObject(table.choice(data.kanetWest.herbsByRegion[kanet.cell.region.id:lower()])) ---@type any
-		---@cast ingred tes3ingredient?
-		return ingred
-	end
-end
-
-local function randomIngredTimer()
-	local kanetMobile = kanet.mobile
-	local ingred = getRandomIngred()
-	if ingred and kanetMobile and (kanetMobile.encumbrance.current + ingred.weight) < kanetMobile.encumbrance.base then
-		tes3.addItem({ reference = kanet, item = ingred })
-		tes3.playSound({ reference = kanet, sound = data.kanetWest.sound.itemPickUp })
-	end
-end
-
-local function startTimers()
-	lastHerbCount = -1
-	if tes3.player.data.alchemistsShop.kanetWest.startUp then
-		timer.start({ type = timer.game, iterations = -1, duration = math.random(1, 4), callback = randomIngredTimer })
-	end
-end
-event.register("loaded", startTimers)
-
 ---@param e uiObjectTooltipEventData
 local function kanetTooltip(e)
 	if not (e.reference == kanet) then
 		return
 	end
 	if not tes3.player.data.alchemistsShop.kanetWest.startUp then
+		return
+	end
+	if kanet.mobile.isDead then
 		return
 	end
 	local fillbarsLayout = e.tooltip:createBlock({ id = data.kanetWest.uiID.fillbarsLayout })
@@ -171,6 +149,8 @@ local function kanetTooltip(e)
 end
 event.register("uiObjectTooltip", kanetTooltip)
 
+---@param mobileActor tes3mobileActor
+---@return boolean
 local function isFriendly(mobileActor)
 	if mobileActor and tes3.mobilePlayer then
 		for _, friendlyActor in pairs(mobileActor.friendlyActors) do
@@ -197,13 +177,14 @@ end
 local function partyBuff(e)
 	if e.caster == kanet then
 		if e.target == kanet then
-			if data.kanetWest.spells.isPartyBuff[e.source.id] then
-				for _, mobileActor in pairs(tes3.findActorsInProximity({ reference = e.target, range = 4 })) do
-					if isFriendly(mobileActor) then
+			if data.kanetWest.isPartyBuff[e.source.id] then
+				for _, mobileActor in pairs(tes3.findActorsInProximity({ reference = e.target, range = 512 })) do
+					if (mobileActor.reference ~= kanet) and isFriendly(mobileActor) then
+						log:debug("%s is indeed friendly, casting party buff %s", mobileActor.reference.id, e.source.id)
 						tes3.cast({
-							reference = kanet,
+							reference = mobileActor,
 							target = mobileActor,
-							spell = data.kanetWest.spells.fleetFeet,
+							spell = e.source.id,
 							instant = true,
 							bypassResistances = true,
 						})
@@ -215,29 +196,80 @@ local function partyBuff(e)
 end
 event.register("spellCasted", partyBuff)
 
----@param e spellTickEventData
-local function joltingTouch(e)
-
-	local function electricityJump(spellId)
-		for _, mobileActor in pairs(tes3.findActorsInProximity({ reference = e.target, range = 4 })) do
-			log:debug("Find actors in proximity of %s: %s", e.target, mobileActor.reference.id)
-			if isHostile(mobileActor) then
-				tes3.cast({ reference = kanet, target = mobileActor, spell = spellId, instant = false })
-				return
+---@param e combatStartedEventData
+local function combatStarted(e)
+	if e.actor == kanet.mobile then
+		local kanetMobile = e.actor
+		if kanetMobile.combatSession then
+			for buff, buffed in pairs(tes3.player.data.alchemistsShop.kanetWest.buffs) do
+				if not buffed then
+					common.message("Kanet casting party buff %s!", buff)
+					tes3.cast({ reference = kanet, target = kanet, spell = buff, alwaysSucceeds = false })
+					tes3.player.data.alchemistsShop.kanetWest.buffs[buff] = true
+					timer.start({
+						type = timer.simulate,
+						duration = tes3.getObject(buff).effects[1].duration,
+						callback = function()
+							tes3.player.data.alchemistsShop.kanetWest.buffs[buff] = false
+						end,
+					})
+				end
 			end
 		end
 	end
+end
+event.register("combatStarted", combatStarted)
 
-	if e.caster == kanet then
-		if e.source.id == data.kanetWest.spells.joltingTouch01 then
-			electricityJump(data.kanetWest.spells.joltingTouch02)
-		end
-		if e.source.id == data.kanetWest.spells.joltingTouch02 then
-			electricityJump(data.kanetWest.spells.joltingTouch03)
+---@param spellId string|tes3spell
+---@param fromTarget tes3reference
+local function electricityJump(spellId, fromTarget)
+	for _, mobileActor in pairs(tes3.findActorsInProximity({ reference = fromTarget, range = 256 })) do
+		if (mobileActor.reference ~= fromTarget) and (mobileActor.reference ~= tes3.player) and
+		(mobileActor.reference ~= kanet) then
+			-- log:debug("Found actor in proximity of %s: %s", fromTarget, mobileActor.reference.id)
+			if isHostile(mobileActor) then
+				local success = tes3.cast({ reference = kanet, target = mobileActor, spell = spellId, instant = true })
+				-- log:debug("%s is hostile, casting %s %s", mobileActor.reference.id, spellId, success and "success" or "failed")
+				return
+			else
+				-- log:debug("%s is friendly, continue", mobileActor.reference.id)
+			end
 		end
 	end
 end
-event.register("spellTick", joltingTouch)
+
+---@param e spellTickEventData
+local function onJoltingTouch1Tick(e)
+	if e.source.id == data.kanetWest.spells.joltingTouch01 then
+		log:debug("%s under spell tick %s", e.target.id, e.source.id)
+		electricityJump(data.kanetWest.spells.joltingTouch02, e.target)
+		event.unregister("spellTick", onJoltingTouch1Tick)
+	end
+end
+---@param e spellTickEventData
+local function onJoltingTouch2Tick(e)
+	if e.source.id == data.kanetWest.spells.joltingTouch02 then
+		log:debug("%s under spell tick %s", e.target.id, e.source.id)
+		electricityJump(data.kanetWest.spells.joltingTouch03, e.target)
+		event.unregister("spellTick", onJoltingTouch2Tick)
+	end
+end
+
+---@param e magicCastedEventData
+local function onJoltingTouchCasted(e)
+	if e.source.id == data.kanetWest.spells.joltingTouch01 then
+		log:debug("%s casted %s at %s", e.caster.id, e.source.id, e.target.id)
+		event.register("spellTick", onJoltingTouch1Tick)
+	end
+	if e.source.id == data.kanetWest.spells.joltingTouch02 then
+		log:debug("%s casted %s at %s", e.caster.id, e.source.id, e.target.id)
+		event.register("spellTick", onJoltingTouch2Tick)
+	end
+	if e.source.id == data.kanetWest.spells.joltingTouch03 then
+		log:debug("%s casted %s at %s", e.caster.id, e.source.id, e.target.id)
+	end
+end
+event.register("magicCasted", onJoltingTouchCasted)
 
 local function talkToKanet(message)
 	local buttons = {}
@@ -298,6 +330,91 @@ local function activateKanet(e)
 end
 event.register("activate", activateKanet)
 
+--[[
+███████ ███████ ███████ ███████ ███    ██ ████████ ██  █████  ██            
+██      ██      ██      ██      ████   ██    ██    ██ ██   ██ ██            
+█████   ███████ ███████ █████   ██ ██  ██    ██    ██ ███████ ██            
+██           ██      ██ ██      ██  ██ ██    ██    ██ ██   ██ ██            
+███████ ███████ ███████ ███████ ██   ████    ██    ██ ██   ██ ███████
+--]]
+
+---@param companion tes3reference
+local function restoreHealthTimer(companion)
+	if companion.mobile.fatigue.current < 0 then
+		tes3.modStatistic({ reference = companion, name = "health", current = 1, limitToBase = true })
+		timer.start({
+			type = timer.simulate,
+			duration = 1,
+			iteration = 1,
+			callback = function()
+				restoreHealthTimer(companion)
+			end,
+		})
+
+	end
+end
+
+local function knockOut(ref)
+	tes3.player.data.alchemistsShop.kanetWest.follow = false
+	tes3.setAIWander({ reference = kanet, range = 443, idles = { 40, 30, 30, 0, 0, 0, 0, 0 } })
+	tes3.messageBox("Kanet West was knocked out!")
+	tes3.setStatistic({ reference = ref, name = "fatigue", current = -150 })
+	ref.mobile:stopCombat()
+	timer.start({
+		type = timer.simulate,
+		duration = 1,
+		iteration = 1,
+		callback = function()
+			restoreHealthTimer(ref)
+		end,
+	})
+end
+
+-- Code from JaceyS
+--- @param e damageEventData
+local function onDamage(e)
+	if (e.reference == kanet and config.companionEssential) then
+		if (e.source == "attack" and (kanet.mobile.health.current - math.abs(e.damage)) <= 1.1) then
+			kanet.mobile.health.current = 1.1 + math.abs(e.damage)
+			if tes3.player.data.alchemistsShop.kanetWest.follow then
+				knockOut(kanet)
+			end
+		elseif (kanet.mobile.health.current - math.abs(e.damage) <= 1.1) then
+			tes3.setStatistic({ reference = kanet, name = "health", current = kanet.mobile.health.current + math.abs(e.damage) })
+			if tes3.player.data.alchemistsShop.kanetWest.follow then
+				knockOut(kanet)
+			end
+		end
+	end
+end
+event.register("damage", onDamage, { priority = -100 })
+
+--[[																				 
+ ██████  ██████  ███    ███ ██████   █████  ███    ██ ██  ██████  ███    ██ 
+██      ██    ██ ████  ████ ██   ██ ██   ██ ████   ██ ██ ██    ██ ████   ██ 
+██      ██    ██ ██ ████ ██ ██████  ███████ ██ ██  ██ ██ ██    ██ ██ ██  ██ 
+██      ██    ██ ██  ██  ██ ██      ██   ██ ██  ██ ██ ██ ██    ██ ██  ██ ██ 
+ ██████  ██████  ██      ██ ██      ██   ██ ██   ████ ██  ██████  ██   ████  					
+]]
+
+---@return tes3ingredient?
+local function getRandomIngred()
+	if kanet.cell.region then
+		local ingred = tes3.getObject(table.choice(data.kanetWest.herbsByRegion[kanet.cell.region.id:lower()])) ---@type any
+		---@cast ingred tes3ingredient?
+		return ingred
+	end
+end
+
+local function randomIngredTimer()
+	local kanetMobile = kanet.mobile
+	local ingred = getRandomIngred()
+	if ingred and kanetMobile and (kanetMobile.encumbrance.current + ingred.weight) < kanetMobile.encumbrance.base then
+		tes3.addItem({ reference = kanet, item = ingred })
+		tes3.playSound({ reference = kanet, sound = data.kanetWest.sound.itemPickUp })
+	end
+end
+
 local function showIngredientsInTube()
 	if kanet then
 		local herbCount = 0
@@ -320,7 +437,15 @@ local function showIngredientsInTube()
 		end
 	end
 end
-event.register("simulate", showIngredientsInTube)
+
+local function startTimers()
+	lastHerbCount = -1
+	timer.start({ type = timer.simulate, iterations = -1, duration = 0.5, callback = showIngredientsInTube })
+	if tes3.player.data.alchemistsShop.kanetWest.startUp then
+		timer.start({ type = timer.game, iterations = -1, duration = math.random(1, 4), callback = randomIngredTimer })
+	end
+end
+event.register("loaded", startTimers)
 
 ---@param e activateEventData
 local function examineDeadKanet(e)

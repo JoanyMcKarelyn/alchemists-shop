@@ -11,6 +11,7 @@ this.defaultPlayerData = {
 		follow = false, -- Kanet is currently following the player
 		level = 1, -- used in scripted leveling, means kanet has (level - 1) abilities chosen
 		abilities = {},
+		buffs = {}, -- used in combat started cast buffs
 		stats = {
 			energy = 100, -- determines health, increased by resting
 			literacy = 0, -- determines magicka, increased by reading
@@ -98,6 +99,7 @@ this.kanetWest = {
 			path = "icons\\s\\tx_s_ftfy_attrib.tga",
 			callback = function(kanet)
 				tes3.addSpell({ reference = kanet, spell = this.kanetWest.spells.fleetingFeet })
+				tes3.player.data.alchemistsShop.kanetWest.buffs[this.kanetWest.spells.fleetingFeet] = false
 				tes3.messageBox("Spell Fleet Feet has been added.")
 			end,
 		},
@@ -111,6 +113,7 @@ this.kanetWest = {
 			path = "icons\\s\\tx_s_rst_fire.tga",
 			callback = function(kanet)
 				tes3.addSpell({ reference = kanet, spell = this.kanetWest.spells.againstTheElements })
+				tes3.player.data.alchemistsShop.kanetWest.buffs[this.kanetWest.spells.againstTheElements] = false
 				tes3.messageBox("Spell Against the Elements has been added.")
 			end,
 		},
